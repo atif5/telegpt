@@ -16,4 +16,4 @@ You can also create your own telegram bot and change the `TOKEN` variable. After
 
 or
 
-``` py bot.py``` if you are on windows.
+```py bot.py``` if you are on windows.
