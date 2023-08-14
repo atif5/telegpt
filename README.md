@@ -5,6 +5,7 @@ ChatGPT for telegram. A bot for interacting with openai's revolutionary technolo
 ## installation
 ```
 git clone https://github.com/atif5/telegpt
+cd telegpt
 python3 -m pip install -r requirements.txt
 ```
 
