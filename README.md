@@ -1,5 +1,5 @@
 # telegpt
-ChatGPT for telegram. A bot for interacting WİTH openai's revolutionary technology ChatGPT through telegram.
+ChatGPT for telegram. A bot for interacting with openai's revolutionary technology ChatGPT through telegram.
 
 
 ## installation
