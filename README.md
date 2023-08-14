@@ -4,7 +4,7 @@ ChatGPT for telegram. A bot for interacting WİTH openai's revolutionary technol
 
 ## installation
 ```
-git clone https://github.com/atif5/telegpt/edit/main/README.md
+git clone https://github.com/atif5/telegpt
 python3 -m pip install -r requirements.txt
 ```
 
@@ -13,3 +13,7 @@ in the credentials.py file, replace the `OPENAI_API_KEY` variable with with your
 You can also create your own telegram bot and change the `TOKEN` variable. After you manage your credentials, you can start the bot:
 
 ```python3 bot.py```
+
+or
+
+``` py bot.py``` if you are on windows.
