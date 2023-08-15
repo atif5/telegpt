@@ -1,2 +1,2 @@
 openai
-import telebot
+telebot
