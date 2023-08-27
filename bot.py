@@ -144,10 +144,10 @@ class GPTbot(telebot.TeleBot):
         dynamic = self.reply_to(message, answer)
         while True:
             try:
-                for _ in range(5):
+                # trying not to abuse the telegram api...
+                for _ in range(7):
                     partial_content = next(content_gen)
                     answer += partial_content
-                # trying not to abuse the telegram api...
                 time.sleep(0.01)
                 try:
                     self.edit_message_text(answer, message.chat.id, dynamic.id)
