@@ -1,3 +1,5 @@
+
+https://github.com/atif5/telegpt/assets/29068387/a823d8bd-c912-4a42-ab1d-a45d7869c3f1
 # telegpt
 ChatGPT for telegram. A simple [bot](https://t.me/ChatGPTNewestBot) for interacting with openai's revolutionary technology ChatGPT through telegram.
 
@@ -5,6 +7,10 @@ ChatGPT for telegram. A simple [bot](https://t.me/ChatGPTNewestBot) for interact
 ```
 git clone https://github.com/atif5/telegpt
 cd telegpt
+
+https://github.com/atif5/telegpt/assets/29068387/4c629de7-c5d9-4586-a43f-217f68a1d0db
+
+
 python3 -m pip install -r requirements.txt
 ```
 
@@ -19,5 +25,5 @@ or
 ```py bot.py``` if you are on windows.
 
 ## showcase
+https://github.com/atif5/telegpt/assets/29068387/fe732204-52c1-46b2-91f0-e6a4e362b6f7
 
-https://github.com/atif5/telegpt/blob/main/showcase.mp4
