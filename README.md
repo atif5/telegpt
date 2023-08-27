@@ -1,10 +1,8 @@
 
-# Showcase
+# TeleGPT
 ## streamed output and clearing chat history
 https://github.com/atif5/telegpt/assets/29068387/fe732204-52c1-46b2-91f0-e6a4e362b6f7
 
-
-# telegpt
 ChatGPT for telegram. A simple [bot](https://t.me/ChatGPTNewestBot) for interacting with openai's revolutionary technology ChatGPT through telegram.
 
 ## installation
