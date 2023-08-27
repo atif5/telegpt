@@ -149,7 +149,7 @@ class GPTbot(telebot.TeleBot):
                     partial_content = next(content_gen)
                     answer += partial_content
                 try:
-                    time.sleep(0.05)
+                    time.sleep(0.5)
                     self.edit_message_text(answer, message.chat.id, dynamic.id)
                 except:
                     print("[DEBUG] failed to edit")
