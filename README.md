@@ -1,5 +1,5 @@
 # telegpt
-ChatGPT for telegram. A [bot](https://t.me/ChatGPTNewestBot) for interacting with openai's revolutionary technology ChatGPT through telegram.
+ChatGPT for telegram. A simple [bot](https://t.me/ChatGPTNewestBot) for interacting with openai's revolutionary technology ChatGPT through telegram.
 
 ## installation
 ```
