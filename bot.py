@@ -145,14 +145,15 @@ class GPTbot(telebot.TeleBot):
         while True:
             try:
                 # trying not to abuse the telegram api...
-                for _ in range(7):
+                for _ in range(10):
                     partial_content = next(content_gen)
                     answer += partial_content
-                time.sleep(0.01)
                 try:
+                    time.sleep(0.05)
                     self.edit_message_text(answer, message.chat.id, dynamic.id)
                 except:
                     print("[DEBUG] failed to edit")
+                    time.sleep(40)
                     continue
             except StopIteration:
                 self.edit_message_text(answer, message.chat.id, dynamic.id)
