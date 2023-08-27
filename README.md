@@ -23,6 +23,7 @@ or
 
 ```py bot.py``` if you are on windows.
 
-## showcase
+# Showcase
+## streamed output and clearing chat history
 https://github.com/atif5/telegpt/assets/29068387/fe732204-52c1-46b2-91f0-e6a4e362b6f7
 
