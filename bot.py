@@ -126,6 +126,8 @@ class GPTbot(telebot.TeleBot):
 
     def answer(self, message):
         self.send_chat_action(message.chat.id, "typing")
+        self.send_message(
+            message.chat.id, f'now generating text for: "{message.text}" Author: @{message.from_user.username}...')
         answer = self.proxy.proxy_answer(
             message.text, message.from_user.id)
         self.reply_to(message, answer)
@@ -142,19 +144,22 @@ class GPTbot(telebot.TeleBot):
 
         answer = partial_content
         dynamic = self.reply_to(message, answer)
+        edit_count = 0
         while True:
             try:
                 # trying not to abuse the telegram api...
-                for _ in range(10):
+                for _ in range(2):
                     partial_content = next(content_gen)
                     answer += partial_content
                 try:
-                    time.sleep(0.5)
+                    time.sleep(0.01)
                     self.edit_message_text(answer, message.chat.id, dynamic.id)
                 except:
                     print("[DEBUG] failed to edit")
                     time.sleep(40)
                     continue
+                else:
+                    edit_count += 1
             except StopIteration:
                 self.edit_message_text(answer, message.chat.id, dynamic.id)
                 return
