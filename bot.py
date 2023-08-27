@@ -122,7 +122,7 @@ class GPTbot(telebot.TeleBot):
 
     def dismiss(self, message):
         self.reply_to(
-            message, "~chat with ChatGPT is suspended right now\\.~", parse_mode="MarkdownV2")
+            message, "~chat with ChatGPT is suspended right now\\.~ To continue\\: use the \\/startchat command", parse_mode="MarkdownV2")
 
     def answer(self, message):
         self.send_chat_action(message.chat.id, "typing")
@@ -151,7 +151,7 @@ class GPTbot(telebot.TeleBot):
                 time.sleep(0.01)
                 try:
                     self.edit_message_text(answer, message.chat.id, dynamic.id)
-                except KeyboardInterrupt:
+                except:
                     print("[DEBUG] failed to edit")
                     continue
             except StopIteration:
