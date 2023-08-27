@@ -13,7 +13,8 @@ python3 -m pip install -r requirements.txt
 ```
 
 ## usage
-in the credentials.py file, replace the `OPENAI_API_KEY` variable with yours. [You can get it here](https://platform.openai.com/account/api-keys)
+in the credentials.py file, replace the `OPENAI_API_KEY` variable with yours. [(You can get it here)](https://platform.openai.com/account/api-keys)
+
 You can also create your own telegram bot and change the `TOKEN` variable. After you manage your credentials, you can start the bot:
 
 ```python3 bot.py```
