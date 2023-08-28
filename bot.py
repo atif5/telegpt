@@ -74,7 +74,9 @@ class ChatGPTProxy:
 
     def change_context(self, id_, new_context):
         self.context = new_context
-        if not self.chats[id_]:
+        if id_ not in self.chats:
+            self.set_context(id_)
+        elif not self.chats[id_]:
             self.set_context(id_)
         chunk = {"role": "system", "content": new_context}
         self.chats[id_][0] = chunk
