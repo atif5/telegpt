@@ -12,7 +12,27 @@ MODEL = "gpt-3.5-turbo"
 openai.api_key = OPENAI_API_KEY
 
 
-STOPCHAT = False
+START_TEXT =  \
+\
+    """Hello 👋 This is a bot developed by Burzum.
+Start typing anything to start interacting with chatgpt.
+ 
+Here are the commands:
+
+/stopchat - suspend the chat with chatgpt
+/startchat - continue the chat with chatgpt
+/clearhistory - clear chat history, for your user
+/start - show this message
+/help - show this message
+/changemode - change the mode to streamed or static
+/setcontext - set a context for chatgpt
+
+the source code for this project is here:
+
+https://github.com/atif5/telegpt
+
+Enjoy!!!
+"""
 
 
 MARKDOWN_SPECIALS = ['_', '[', ']',
@@ -48,14 +68,21 @@ class ChatGPTProxy:
         finished = partial["choices"][0]["finish_reason"]
         return content, finished
 
-    def set_context(self, id_, context):
-        chunk = {"role": "system", "content": context}
+    def set_context(self, id_):
+        chunk = {"role": "system", "content": self.context}
         self.chats[id_] = [chunk, ]
+
+    def change_context(self, id_, new_context):
+        self.context = new_context
+        if not self.chats[id_]:
+            self.set_context(id_)
+        chunk = {"role": "system", "content": new_context}
+        self.chats[id_][0] = chunk
 
     def create_completion(self, text, id_, streamed=False):
         chunk = {"role": "user", "content": text}
         if id_ not in self.chats or (not self.chats[id_]):
-            self.set_context(id_, self.context)
+            self.set_context(id_)
         self.chats[id_].append(chunk)
         completion = self.__class__.framework.ChatCompletion.create(
             model=MODEL, messages=self.chats[id_], stream=streamed)
@@ -90,13 +117,16 @@ class GPTbot(telebot.TeleBot):
             self.starter: ["start", "help"],
             self.clear_history: ["clearhistory", ],
             self.set_mode: ["changemode", ],
+            self.ask_context: ["setcontext", ],
+            self.set_context: lambda m: self.setting_context,
             self.dismiss: lambda m: self.chat_stopped,
-            self.answer: lambda m: not self.streamed and not self.chat_stopped,
-            self.answer_dynamic: lambda m: self.streamed and not self.chat_stopped,
+            self.answer: lambda m: not self.streamed and not self.chat_stopped and not self.setting_context,
+            self.answer_dynamic: lambda m: self.streamed and not self.chat_stopped and not self.setting_context,
         }
         self.decorate()
         self.proxy = ChatGPTProxy(MODEL, OPENAI_API_KEY)
         self.chat_stopped = False
+        self.setting_context = False
 
     def change_mode(self):
         new_mode = not self.streamed
@@ -120,10 +150,7 @@ class GPTbot(telebot.TeleBot):
             self.chat_stopped = False
 
     def starter(self, message):
-        if self.streamed:
-            self.answer_dynamic(message)
-        else:
-            self.answer(message)
+        self.send_message(message.chat.id, START_TEXT)
 
     def dismiss(self, message):
         self.reply_to(
@@ -179,6 +206,18 @@ class GPTbot(telebot.TeleBot):
         self.change_mode()
         mode = "streamed" if self.streamed else "static"
         self.send_message(message.chat.id, f"⚠️ Mode is now {mode} ⚠️")
+
+    def ask_context(self, message):
+        markup = telebot.types.ForceReply(selective=False)
+        self.send_message(
+            message.chat.id, "Input a context: ", reply_markup=markup)
+        self.setting_context = True
+
+    def set_context(self, message):
+        self.proxy.change_context(message.from_user.id, message.text)
+        self.send_message(
+            message.chat.id, f'⚠️ Context set to "{message.text}"! ⚠️')
+        self.setting_context = False
 
     def decorate(self):
         for func in self.func_handler:
