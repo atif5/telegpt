@@ -2,6 +2,11 @@ import openai
 import telebot
 from credentials import TOKEN, OPENAI_API_KEY
 import time
+import logging
+
+
+logging.basicConfig(format='%(asctime)s %(message)s',
+                    datefmt='%m/%d/%Y %I:%M:%S %p')
 
 MODEL = "gpt-3.5-turbo"
 openai.api_key = OPENAI_API_KEY
@@ -49,7 +54,7 @@ class ChatGPTProxy:
 
     def create_completion(self, text, id_, streamed=False):
         chunk = {"role": "user", "content": text}
-        if id_ not in self.chats:
+        if id_ not in self.chats or (not self.chats[id_]):
             self.set_context(id_, self.context)
         self.chats[id_].append(chunk)
         completion = self.__class__.framework.ChatCompletion.create(
@@ -130,7 +135,8 @@ class GPTbot(telebot.TeleBot):
             message.chat.id, f'now generating text for: "{message.text}" Author: @{message.from_user.username}...')
         answer = self.proxy.proxy_answer(
             message.text, message.from_user.id)
-        self.reply_to(message, answer)
+        answer = self.__class__.format_response(answer)
+        self.reply_to(message, answer, parse_mode="MarkdownV2")
 
     def answer_dynamic(self, message):
         self.send_chat_action(message.chat.id, "typing")
@@ -148,14 +154,14 @@ class GPTbot(telebot.TeleBot):
         while True:
             try:
                 # trying not to abuse the telegram api...
-                for _ in range(2):
+                for _ in range(10):
                     partial_content = next(content_gen)
                     answer += partial_content
                 try:
                     time.sleep(0.01)
                     self.edit_message_text(answer, message.chat.id, dynamic.id)
                 except:
-                    print("[DEBUG] failed to edit")
+                    logging.error(f"failed to edit message")
                     time.sleep(40)
                     continue
                 else:
@@ -184,7 +190,7 @@ class GPTbot(telebot.TeleBot):
 
 
 if __name__ == "__main__":
-    bot = GPTbot(TOKEN, parse_mode=None, streamed=True)
+    bot = GPTbot(TOKEN, parse_mode=None, streamed=False)
     try:
         bot.infinity_polling()
     except:
