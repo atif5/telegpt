@@ -1,7 +1,9 @@
 
 # TeleGPT
 ## streamed output and clearing chat history
-https://github.com/atif5/telegpt/assets/29068387/fe732204-52c1-46b2-91f0-e6a4e362b6f7
+https://github.com/atif5/telegpt/assets/29068387/468df330-b19b-4934-be0c-76767b233a4c
+
+
 
 
 ## setting context
