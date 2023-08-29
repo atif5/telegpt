@@ -5,7 +5,7 @@ https://github.com/atif5/telegpt/assets/29068387/fe732204-52c1-46b2-91f0-e6a4e36
 
 
 ## setting context
-https://github.com/atif5/telegpt/assets/29068387/c9eab1aa-52fe-4ad4-b2d7-75086057dcb9
+https://github.com/atif5/telegpt/assets/29068387/58647116-246f-4df0-8181-58c36ef507ad
 
 
 ChatGPT for telegram. A simple [bot](https://t.me/ChatGPTNewestBot) for interacting with openai's revolutionary technology ChatGPT through telegram.
