@@ -35,7 +35,7 @@ Enjoy!!!
 """
 
 
-MARKDOWN_SPECIALS = ['_', '[', ']',
+MARKDOWN_SPECIALS = ['_', '[', ']', '#'
                      '(', ')', '~', '>', '+', '-', '=', '{', '}', '.', '!']
 
 DEFAULT_CONTEXT = "You are chatting with someone on the telegram platform."
