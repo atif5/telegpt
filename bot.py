@@ -38,12 +38,14 @@ Enjoy!!!
 MARKDOWN_SPECIALS = ['_', '[', ']',
                      '(', ')', '~', '>', '+', '-', '=', '{', '}', '.', '!']
 
+DEFAULT_CONTEXT = "You are chatting with someone on the telegram platform."
+
 
 class ChatGPTProxy:
     framework = openai
 
     def __init__(self, model, api_key):
-        self.context = "You are chatting with another on the telegram platform."
+        self.context = DEFAULT_CONTEXT
         self.api_key = api_key
         self.__class__.framework.api_key = self.api_key
         try:
@@ -68,36 +70,32 @@ class ChatGPTProxy:
         finished = partial["choices"][0]["finish_reason"]
         return content, finished
 
-    def set_context(self, id_):
+    def create_chat(self, id_):
         chunk = {"role": "system", "content": self.context}
-        self.chats[id_] = [chunk, ]
+        self.chats[id_] = {"suspended": False, "chat": [chunk, ]}
 
     def change_context(self, id_, new_context):
         self.context = new_context
-        if id_ not in self.chats:
-            self.set_context(id_)
-        elif not self.chats[id_]:
-            self.set_context(id_)
         chunk = {"role": "system", "content": new_context}
-        self.chats[id_][0] = chunk
+        self.chats[id_]["chat"][0] = chunk
+
+    def add_message(self, id_, message, assistant: bool):
+        role = "assistant" if assistant else "user"
+        chunk = {"role": role, "content": message}
+        self.chats[id_]["chat"].append(chunk)
 
     def create_completion(self, text, id_, streamed=False):
-        chunk = {"role": "user", "content": text}
-        if id_ not in self.chats or (not self.chats[id_]):
-            self.set_context(id_)
-        self.chats[id_].append(chunk)
         completion = self.__class__.framework.ChatCompletion.create(
-            model=MODEL, messages=self.chats[id_], stream=streamed)
+            model=MODEL, messages=self.chats[id_]["chat"], stream=streamed)
         return completion
 
     def proxy_answer(self, text, id_):
         completion = self.create_completion(text, id_)
         gptresponse, tokens_used = self.__class__.fetch_response(completion)
-        chunk = {"role": "assistant", "content": gptresponse}
-        self.chats[id_].append(chunk)
         return gptresponse + f"\n\n used tokens: {tokens_used}"
 
-    def proxy_streamed(self, generator, id_):
+    def proxy_streamed(self, text, id_):
+        generator = self.create_completion(text, id_, streamed=True)
         done = False
         stream = str()
         while not done:
@@ -105,9 +103,7 @@ class ChatGPTProxy:
             content, finished = self.__class__.fetch_streamed(partial)
             stream += content
             yield content
-            done = bool(finished)
-        chunk = {"role": "assistant", "content": stream}
-        self.chats[id_].append(chunk)
+            done = finished
 
 
 class GPTbot(telebot.TeleBot):
@@ -121,18 +117,27 @@ class GPTbot(telebot.TeleBot):
             self.set_mode: ["changemode", ],
             self.ask_context: ["setcontext", ],
             self.set_context: lambda m: self.setting_context,
-            self.dismiss: lambda m: self.chat_stopped,
-            self.answer: lambda m: not self.streamed and not self.chat_stopped and not self.setting_context,
-            self.answer_dynamic: lambda m: self.streamed and not self.chat_stopped and not self.setting_context,
+            self.dismiss: lambda m: self.chat_is_suspended(m.from_user.id),
+            self.answer: lambda m: not self.streamed and not self.setting_context,
+            self.answer_dynamic: lambda m: self.streamed and not self.setting_context,
         }
         self.decorate()
         self.proxy = ChatGPTProxy(MODEL, OPENAI_API_KEY)
-        self.chat_stopped = False
         self.setting_context = False
+
+    def chat_is_suspended(self, id_):
+        if id_ not in self.proxy.chats:
+            return False
+        return self.proxy.chats[id_]["suspended"]
 
     def change_mode(self):
         new_mode = not self.streamed
         self.streamed = new_mode
+
+    def update_chat_for_user(self, text, user_id):
+        if user_id not in self.proxy.chats or not self.proxy.chats[user_id]["chat"]:
+            self.proxy.create_chat(user_id)
+        self.proxy.add_message(user_id, text, assistant=False)
 
     @staticmethod
     def format_response(response):
@@ -143,36 +148,37 @@ class GPTbot(telebot.TeleBot):
 
     def handle_chat_status(self, message):
         if message.text == "/stopchat":
-            self.chat_stopped = True
+            self.proxy.chats[message.from_user.id]["suspended"] = True
             self.send_message(
                 message.chat.id, f"⚠️~@{message.from_user.username} suspended the chat with ChatGPT\\.~⚠️", parse_mode="MarkdownV2")
         else:
+            self.proxy.chats[message.from_user.id]["suspended"] = False
             self.send_message(
                 message.chat.id, f"The chat with ChatGPT is now continued ✔️")
-            self.chat_stopped = False
 
     def starter(self, message):
         self.send_message(message.chat.id, START_TEXT)
 
     def dismiss(self, message):
         self.reply_to(
-            message, "~chat with ChatGPT is suspended right now\\.~ To continue\\: use the \\/startchat command", parse_mode="MarkdownV2")
+            message, "~chat with ChatGPT is suspended for you right now\\.~ To continue\\: use the \\/startchat command", parse_mode="MarkdownV2")
 
     def answer(self, message):
         self.send_chat_action(message.chat.id, "typing")
+        self.update_chat_for_user(message.text, message.from_user.id)
         self.send_message(
             message.chat.id, f'now generating text for: "{message.text}" Author: @{message.from_user.username}...')
         answer = self.proxy.proxy_answer(
             message.text, message.from_user.id)
         answer = self.__class__.format_response(answer)
         self.reply_to(message, answer, parse_mode="MarkdownV2")
+        self.proxy.add_message(message.from_user.id, answer, assistant=True)
 
     def answer_dynamic(self, message):
         self.send_chat_action(message.chat.id, "typing")
-        completion = self.proxy.create_completion(
-            message.text, message.from_user.id, streamed=True)
+        self.update_chat_for_user(message.text, message.from_user.id)
         content_gen = self.proxy.proxy_streamed(
-            completion, message.from_user.id)
+            message.text, message.from_user.id)
         partial_content = str()
         while not partial_content:
             partial_content = next(content_gen)
@@ -198,8 +204,11 @@ class GPTbot(telebot.TeleBot):
             except StopIteration:
                 self.edit_message_text(answer, message.chat.id, dynamic.id)
                 return
+        self.proxy.add_message(message.from_user.id, answer, assistant=True)
 
     def clear_history(self, message):
+        if not self.proxy.chats[message.from_user.id]:
+            return
         self.proxy.chats[message.from_user.id].clear()
         self.send_message(
             message.chat.id, f"@{message.from_user.username}'s history has been cleared 🗑️")
@@ -230,7 +239,7 @@ class GPTbot(telebot.TeleBot):
                 func = self.message_handler(func=rhandler)(func)
 
 
-if __name__ == "__main__":
+def main():
     bot = GPTbot(TOKEN, parse_mode=None, streamed=False)
     try:
         bot.infinity_polling()
@@ -240,3 +249,7 @@ if __name__ == "__main__":
         dump = open("chats.py", "w+")
         dump.write("id_chats = " + str(bot.proxy.chats))
         dump.close()
+
+
+if __name__ == "__main__":
+    main()
