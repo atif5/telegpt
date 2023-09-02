@@ -126,7 +126,7 @@ class GPTbot(telebot.TeleBot):
         self.setting_context = False
 
     def chat_is_suspended(self, id_):
-        if id_ not in self.proxy.chats:
+        if id_ not in self.proxy.chats or not self.proxy.chats[id_]:
             return False
         return self.proxy.chats[id_]["suspended"]
 
@@ -135,7 +135,7 @@ class GPTbot(telebot.TeleBot):
         self.streamed = new_mode
 
     def update_chat_for_user(self, text, user_id):
-        if user_id not in self.proxy.chats or not self.proxy.chats[user_id]["chat"]:
+        if user_id not in self.proxy.chats or not self.proxy.chats[user_id]:
             self.proxy.create_chat(user_id)
         self.proxy.add_message(user_id, text, assistant=False)
 
