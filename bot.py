@@ -181,7 +181,6 @@ class GPTbot(telebot.TeleBot):
             message.chat.id, f'now generating text for: "{message.text}" Author: @{message.from_user.username}...')
         answer = self.proxy.proxy_answer(
             message.text, message.from_user.id)
-        answer = self.__class__.format_response(answer)
         self.reply_to(message, answer, parse_mode=None)
         self.proxy.add_message(message.from_user.id, answer, assistant=True)
 
