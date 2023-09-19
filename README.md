@@ -32,4 +32,6 @@ or
 ```py bot.py``` if you are on windows.
 
 
+## Notes
+This bot can be used in group chats, however it is not specifically designed to be used in group chats. Every chat is unique to a user not a chat. In the future I may implement a group chat mode!
 
