@@ -33,10 +33,15 @@ or
 
 ## features
 ☑ ability to change context
+
 ☑ streamed output
+
 ☑ keeping chat history
+
 ☑ ability to clear history
+
 ☐ inline queries
+
 ☐ group chat support
 
 
