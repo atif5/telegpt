@@ -150,7 +150,6 @@ class GPTbot(telebot.TeleBot):
 
     def update_chat_for_user(self, text, user_id):
         if self.new_user(user_id):
-            print("cus")
             logging.warning(
                 f"a new user with the id: {user_id} has started chatting.")
             self.proxy.create_chat(user_id)
