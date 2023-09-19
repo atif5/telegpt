@@ -38,6 +38,8 @@ or
 
 ☑ keeping chat history
 
+☑ token usage showcase
+
 ☑ ability to clear history
 
 ☐ inline queries
