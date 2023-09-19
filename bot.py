@@ -95,7 +95,7 @@ class ChatGPTProxy:
     def proxy_answer(self, text, id_):
         completion = self.create_completion(text, id_)
         gptresponse, tokens_used = self.__class__.fetch_response(completion)
-        return gptresponse + f"\n\n used tokens: {tokens_used}"
+        return gptresponse, tokens_used
 
     def proxy_streamed(self, text, id_):
         generator = self.create_completion(text, id_, streamed=True)
@@ -126,18 +126,21 @@ class GPTbot(telebot.TeleBot):
         self.decorate()
         self.proxy = ChatGPTProxy(MODEL, OPENAI_API_KEY)
 
+    def new_user(self, user_id) -> bool:
+        return not (user_id in self.proxy.chats)
+
     def chat_setting_context(self, id_):
-        if id_ not in self.proxy.chats or not self.proxy.chats[id_]:
+        if self.new_user(id_):
             return None
         return self.proxy.chats[id_]["settingcontext"]
 
     def chat_is_suspended(self, id_):
-        if id_ not in self.proxy.chats or not self.proxy.chats[id_]:
+        if self.new_user(id_):
             return False
         return self.proxy.chats[id_]["suspended"]
 
     def chat_is_streamed(self, id_):
-        if id_ not in self.proxy.chats or not self.proxy.chats[id_]:
+        if self.new_user(id_):
             return None
         return not self.proxy.chats[id_]["static"]
 
@@ -146,7 +149,10 @@ class GPTbot(telebot.TeleBot):
         self.proxy.chats[id_]["static"] = new_mode
 
     def update_chat_for_user(self, text, user_id):
-        if user_id not in self.proxy.chats or not self.proxy.chats[user_id]:
+        if self.new_user(user_id):
+            print("cus")
+            logging.warning(
+                f"a new user with the id: {user_id} has started chatting.")
             self.proxy.create_chat(user_id)
         self.proxy.add_message(user_id, text, assistant=False)
 
@@ -158,6 +164,8 @@ class GPTbot(telebot.TeleBot):
         return response
 
     def handle_chat_status(self, message):
+        if self.new_user(message.from_user.id):
+            self.proxy.create_chat(message.from_user.id)
         if message.text == "/stopchat":
             self.proxy.chats[message.from_user.id]["suspended"] = True
             self.send_message(
@@ -179,9 +187,10 @@ class GPTbot(telebot.TeleBot):
         self.update_chat_for_user(message.text, message.from_user.id)
         self.send_message(
             message.chat.id, f'now generating text for: "{message.text}" Author: @{message.from_user.username}...')
-        answer = self.proxy.proxy_answer(
+        answer, tokens_used = self.proxy.proxy_answer(
             message.text, message.from_user.id)
-        self.reply_to(message, answer, parse_mode=None)
+        self.reply_to(message, answer +
+                      f"\n\ntokens used: {tokens_used}", parse_mode=None)
         self.proxy.add_message(message.from_user.id, answer, assistant=True)
 
     def answer_dynamic(self, message):
@@ -206,7 +215,7 @@ class GPTbot(telebot.TeleBot):
                     time.sleep(0.01)
                     self.edit_message_text(answer, message.chat.id, dynamic.id)
                 except:
-                    logging.error(f"failed to edit message")
+                    logging.error("failed to edit message")
                     time.sleep(40)
                     continue
                 else:
@@ -217,21 +226,22 @@ class GPTbot(telebot.TeleBot):
                     break
                 except:
                     break
+            # todo: clean this mess
         self.proxy.add_message(message.from_user.id, answer, assistant=True)
 
     def clear_history(self, message):
-        if not self.proxy.chats[message.from_user.id]:
+        if self.new_user(message.from_user.id):
+            self.proxy.create_chat(message.from_user.id)
+        if not self.proxy.chats[message.from_user.id]["chat"]:
             self.send_message(
                 message.chat.id, f"@{message.from_user.username} already has no history!")
             return
-        self.proxy.chats[message.from_user.id].clear()
+        self.proxy.chats[message.from_user.id]["chat"].clear()
         self.send_message(
             message.chat.id, f"@{message.from_user.username}'s history has been cleared 🗑️")
 
     def set_mode(self, message):
-        if message.from_user.id not in self.proxy.chats:
-            self.proxy.create_chat(message.from_user.id)
-        elif not self.proxy.chats[message.from_user.id]:
+        if self.new_user(message.from_user.id):
             self.proxy.create_chat(message.from_user.id)
         self.change_mode(message.from_user.id)
         mode = "static" if self.proxy.chats[message.from_user.id]["static"] else "streamed"
@@ -242,17 +252,14 @@ class GPTbot(telebot.TeleBot):
         self.send_message(
             message.chat.id, "Input a context: ", reply_markup=markup)
         self.proxy.chats[message.from_user.id]["settingcontext"] = True
-        
+
     def set_context(self, message):
-        if message.from_user.id not in self.proxy.chats:
-            self.proxy.create_chat(message.from_user.id)
-        elif not self.proxy.chats[message.from_user.id]:
+        if self.new_user(message.from_user.id):
             self.proxy.create_chat(message.from_user.id)
         self.proxy.change_context(message.from_user.id, message.text)
         self.send_message(
             message.chat.id, f'⚠️ Context set to "{message.text}"! ⚠️')
         self.proxy.chats[message.from_user.id]["settingcontext"] = False
-        
 
     def decorate(self):
         for func in self.func_handler:
