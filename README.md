@@ -42,7 +42,7 @@ or
 
 ☑ ability to clear history
 
-☐ inline queries
+☑ inline queries
 
 ☐ group chat support
 
