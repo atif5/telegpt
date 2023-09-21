@@ -48,5 +48,5 @@ or
 
 
 ## notes
-This bot can be used in group chats, however it is not specifically designed to be used in group chats. Every chat is unique to a user, not a chat. In the future I may implement a group chat mode though.
+This bot can be used in group chats, however it is not specifically designed to be used in group chats. Every chat is unique to a user, not a telegram chat. In the future I may implement a group chat mode though.
 
