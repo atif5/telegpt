@@ -1,5 +1,8 @@
+
+from dataclasses import dataclass
 import openai
 import telebot
+from telebot import types
 from credentials import TOKEN, OPENAI_API_KEY
 import time
 import logging
@@ -56,18 +59,22 @@ class ChatGPTProxy:
 
     @staticmethod
     def fetch_response(chat_completion):
-        tokens_used = chat_completion["usage"]["total_tokens"]
-        content = chat_completion["choices"][0]["message"]["content"]
+        tokens_used = chat_completion.usage.total_tokens
+        choices = chat_completion.choices
+        f = choices[0]
+        content = f.message.content
         return content, tokens_used
 
     @staticmethod
     def fetch_streamed(partial):
-        data = partial["choices"][0]["delta"]
+        choices = partial.choices
+        f = choices[0]
+        data = f.delta
         if data:
-            content = partial["choices"][0]["delta"]["content"]
+            content = data.content
         else:
             content = ''
-        finished = partial["choices"][0]["finish_reason"]
+        finished = f.finish_reason
         return content, finished
 
     def create_chat(self, id_):
@@ -91,6 +98,13 @@ class ChatGPTProxy:
         completion = self.__class__.framework.ChatCompletion.create(
             model=MODEL, messages=self.chats[id_]["chat"], stream=streamed)
         return completion
+
+    def proxy_single(self, query):
+        completion = self.__class__.framework.ChatCompletion.create(
+            model=MODEL, messages=[{"role": "system", "content": "answer this question"},
+                                   {"role": "user", "content": query}])
+        gptresponse, tokens_used = self.__class__.fetch_response(completion)
+        return gptresponse, tokens_used
 
     def proxy_answer(self, text, id_):
         completion = self.create_completion(text, id_)
@@ -250,6 +264,8 @@ class GPTbot(telebot.TeleBot):
         markup = telebot.types.ForceReply(selective=False)
         self.send_message(
             message.chat.id, "Input a context: ", reply_markup=markup)
+        if self.new_user(message.from_user.id):
+            self.proxy.create_chat(message.from_user.id)
         self.proxy.chats[message.from_user.id]["settingcontext"] = True
 
     def set_context(self, message):
@@ -260,6 +276,14 @@ class GPTbot(telebot.TeleBot):
             message.chat.id, f'⚠️ Context set to "{message.text}"! ⚠️')
         self.proxy.chats[message.from_user.id]["settingcontext"] = False
 
+    def inline_answer(self, inline_query):
+        logging.warning(f'inline query: "{inline_query.query}" was submitted')
+        answer, tokens_used = self.proxy.proxy_single(inline_query.query)
+        final = f"Query: {inline_query.query}\n\nResponse: {answer}\n\nused tokens: {tokens_used}"
+        r = types.InlineQueryResultArticle(
+            '1', 'Query taken, click to see the response', types.InputTextMessageContent(final))
+        self.answer_inline_query(inline_query.id, [r, ])
+
     def decorate(self):
         for func in self.func_handler:
             rhandler = self.func_handler[func]
@@ -267,6 +291,8 @@ class GPTbot(telebot.TeleBot):
                 func = self.message_handler(commands=rhandler)(func)
             else:
                 func = self.message_handler(func=rhandler)(func)
+        self.inline_answer = self.inline_handler(
+            func=lambda query: bool(query.query) and query.query[-1] == '?')(self.inline_answer)
 
 
 def main():
