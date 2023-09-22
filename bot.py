@@ -1,17 +1,21 @@
 
-from dataclasses import dataclass
 import openai
 import telebot
 from telebot import types
 from credentials import TOKEN, OPENAI_API_KEY
 import time
 import logging
+import requests
+import random
+import os
+import io
 
 
 logging.basicConfig(format='%(asctime)s %(message)s',
                     datefmt='%m/%d/%Y %I:%M:%S %p')
 
-MODEL = "gpt-3.5-turbo"
+TMODEL = "gpt-3.5-turbo"
+VMODEL = "whisper-1"
 openai.api_key = OPENAI_API_KEY
 
 
@@ -19,6 +23,7 @@ START_TEXT =  \
 \
     """Hello 👋 This is a bot developed by Burzum.
 Start typing anything to start interacting with chatgpt.
+You can also send your voice!
  
 Here are the commands:
 
@@ -48,8 +53,9 @@ class ChatGPTProxy:
     framework = openai
 
     def __init__(self, model, api_key):
-        self.context = DEFAULT_CONTEXT
+        self.model = model
         self.api_key = api_key
+        self.context = DEFAULT_CONTEXT
         self.__class__.framework.api_key = self.api_key
         try:
             from chats import id_chats
@@ -96,13 +102,13 @@ class ChatGPTProxy:
 
     def create_completion(self, text, id_, streamed=False):
         completion = self.__class__.framework.ChatCompletion.create(
-            model=MODEL, messages=self.chats[id_]["chat"], stream=streamed)
+            model=self.model, messages=self.chats[id_]["chat"], stream=streamed)
         return completion
 
     def proxy_single(self, query):
         completion = self.__class__.framework.ChatCompletion.create(
-            model=MODEL, messages=[{"role": "system", "content": "answer this question"},
-                                   {"role": "user", "content": query}])
+            model=self.model, messages=[{"role": "system", "content": "answer this question"},
+                                        {"role": "user", "content": query}])
         gptresponse, tokens_used = self.__class__.fetch_response(completion)
         return gptresponse, tokens_used
 
@@ -132,13 +138,15 @@ class GPTbot(telebot.TeleBot):
             self.clear_history: ["clearhistory", ],
             self.set_mode: ["changemode", ],
             self.ask_context: ["setcontext", ],
+            self.generate_image: ["image", ],
             self.set_context: lambda m: self.chat_setting_context(m.from_user.id),
             self.dismiss: lambda m: self.chat_is_suspended(m.from_user.id),
             self.answer: lambda m: not self.chat_is_streamed(m.from_user.id) and not self.chat_setting_context(m.from_user.id),
             self.answer_dynamic: lambda m: self.chat_is_streamed(m.from_user.id) and not self.chat_setting_context(m.from_user.id),
+            self.audio_answer: ["voice", ]
         }
         self.decorate()
-        self.proxy = ChatGPTProxy(MODEL, OPENAI_API_KEY)
+        self.proxy = ChatGPTProxy(TMODEL, OPENAI_API_KEY)
 
     def new_user(self, user_id) -> bool:
         return not (user_id in self.proxy.chats)
@@ -284,10 +292,41 @@ class GPTbot(telebot.TeleBot):
             '1', 'Query taken, click to see the response', types.InputTextMessageContent(final))
         self.answer_inline_query(inline_query.id, [r, ])
 
+    def audio_answer(self, message):
+        file = self.get_file(message.voice.file_id)
+        downloaded_file = self.download_file(file.file_path)
+        rname = f"{str(random.random())[2:]}.ogg"
+        with open(rname, "wb") as new_file:
+            new_file.write(downloaded_file)
+        fileh = open(rname, "rb")
+        self.reply_to(
+            message, "Now attempting to transcribe this voice message...")
+        transcript = self.proxy.framework.Audio.transcribe(VMODEL, fileh)
+        text = transcript.text
+        self.reply_to(
+            message, f"this message was transcribed as {text}")
+        answer, tokens_used = self.proxy.proxy_single(text)
+        self.send_message(message.chat.id, answer)
+        os.remove(rname)
+
+    def generate_image(self, message):
+        query = ' '.join(message.text.split(' ')[1:])
+        self.send_message(
+            message.chat.id, f'now generating an image for the text: "{query}"...')
+        response = self.proxy.framework.Image.create(
+            prompt=query, n=1, size="512x512")
+        imgurl = response.data[0].url  # always one data
+        request = requests.get(imgurl)
+        fileh = io.BytesIO(request.content)
+        self.send_photo(message.chat.id, fileh)
+
     def decorate(self):
         for func in self.func_handler:
             rhandler = self.func_handler[func]
             if type(rhandler) is list:
+                if "voice" in rhandler:
+                    func = self.message_handler(content_types=rhandler)(func)
+                    continue
                 func = self.message_handler(commands=rhandler)(func)
             else:
                 func = self.message_handler(func=rhandler)(func)
@@ -305,6 +344,7 @@ def main():
         dump = open("chats.py", "w+")
         dump.write("id_chats = " + str(bot.proxy.chats))
         dump.close()
+    # todo: terrible way to store chats, find a better way!
 
 
 if __name__ == "__main__":
