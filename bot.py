@@ -34,6 +34,7 @@ Here are the commands:
 /help - show this message
 /changemode - change the mode to streamed or static
 /setcontext - set a context for chatgpt
+/image - generate 512x512 image based on input, should be used like: /image some text
 
 the source code for this project is here:
 
