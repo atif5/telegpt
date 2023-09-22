@@ -44,6 +44,10 @@ or
 
 ☑ inline queries
 
+☑ can generate images
+
+☑ can transcribe voice messages and reply
+
 ☐ group chat support
 
 
