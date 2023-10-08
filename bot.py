@@ -7,6 +7,7 @@ import time
 import logging
 import requests
 import random
+import json
 import os
 import io
 
@@ -36,6 +37,10 @@ Here are the commands:
 /setcontext - set a context for chatgpt
 /image - generate 512x512 image based on input, should be used like: /image some text
 
+You can use this bot with inline queries as well.
+
+The query must end with a single question mark.
+
 the source code for this project is here:
 
 https://github.com/atif5/telegpt
@@ -59,9 +64,17 @@ class ChatGPTProxy:
         self.context = DEFAULT_CONTEXT
         self.__class__.framework.api_key = self.api_key
         try:
-            from chats import id_chats
-            self.chats = id_chats
-        except ImportError:
+            chats_file = open("chats.json", 'r')
+            self.chats = json.load(chats_file)
+            keys = list(self.chats.keys())
+            # convert ids to integers
+            for id_ in keys:
+                chat = self.chats[id_]
+                self.chats.pop(id_)
+                self.chats[int(id_)] = chat
+
+        except FileNotFoundError:
+            logging.warning("No chats.json file found.")
             self.chats = {}
 
     @staticmethod
@@ -106,9 +119,9 @@ class ChatGPTProxy:
             model=self.model, messages=self.chats[id_]["chat"], stream=streamed)
         return completion
 
-    def proxy_single(self, query):
+    def proxy_single(self, query, context=DEFAULT_CONTEXT):
         completion = self.__class__.framework.ChatCompletion.create(
-            model=self.model, messages=[{"role": "system", "content": "answer this question"},
+            model=self.model, messages=[{"role": "system", "content": context},
                                         {"role": "user", "content": query}])
         gptresponse, tokens_used = self.__class__.fetch_response(completion)
         return gptresponse, tokens_used
@@ -287,7 +300,8 @@ class GPTbot(telebot.TeleBot):
 
     def inline_answer(self, inline_query):
         logging.warning(f'inline query: "{inline_query.query}" was submitted')
-        answer, tokens_used = self.proxy.proxy_single(inline_query.query)
+        answer, tokens_used = self.proxy.proxy_single(
+            inline_query.query, context="Answer this question shortly")
         final = f"Query: {inline_query.query}\n\nResponse: {answer}\n\nused tokens: {tokens_used}"
         r = types.InlineQueryResultArticle(
             '1', 'Query taken, click to see the response', types.InputTextMessageContent(final))
@@ -312,6 +326,8 @@ class GPTbot(telebot.TeleBot):
 
     def generate_image(self, message):
         query = ' '.join(message.text.split(' ')[1:])
+        logging.warning(
+            f"prompted to generate image for {query}!")
         self.send_message(
             message.chat.id, f'now generating an image for the text: "{query}"...')
         response = self.proxy.framework.Image.create(
@@ -332,7 +348,16 @@ class GPTbot(telebot.TeleBot):
             else:
                 func = self.message_handler(func=rhandler)(func)
         self.inline_answer = self.inline_handler(
-            func=lambda query: bool(query.query) and query.query[-1] == '?')(self.inline_answer)
+            func=lambda query: self.__class__.query_eliminator(query.query))(self.inline_answer)
+
+    @staticmethod
+    def query_eliminator(query_text: str):
+        qm_count = query_text.count('?')
+        if qm_count > 1:
+            return False
+        elif qm_count == 1:
+            if query_text[-1]:
+                return True
 
 
 def main():
@@ -342,10 +367,10 @@ def main():
     except:
         pass
     finally:
-        dump = open("chats.py", "w+")
-        dump.write("id_chats = " + str(bot.proxy.chats))
+        dump = open("chats.json", "w+")
+        json.dump(bot.proxy.chats, dump, indent=4)
         dump.close()
-    # todo: terrible way to store chats, find a better way!
+    # save the chats in json format
 
 
 if __name__ == "__main__":
