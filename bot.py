@@ -236,7 +236,6 @@ class GPTbot(telebot.TeleBot):
 
         answer = partial_content
         dynamic = self.reply_to(message, answer)
-        edit_count = 0
         while True:
             try:
                 # trying not to abuse the telegram api...
@@ -250,8 +249,6 @@ class GPTbot(telebot.TeleBot):
                     logging.error("failed to edit message")
                     time.sleep(40)
                     continue
-                else:
-                    edit_count += 1
             except StopIteration:
                 try:
                     self.edit_message_text(answer, message.chat.id, dynamic.id)
