@@ -7,14 +7,6 @@ import time
 import logging
 import requests
 import random
-import openai
-import telebot
-from telebot import types
-from credentials import TOKEN, OPENAI_API_KEY
-import time
-import logging
-import requests
-import random
 import json
 import os
 import io
