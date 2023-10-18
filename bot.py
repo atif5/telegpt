@@ -246,6 +246,7 @@ class GPTbot(telebot.TeleBot):
                 except StopIteration:
                     self.edit_message_text(answer, message.chat.id, dynamic.id)
                     editing = False
+                    break
                 
             try:
                 time.sleep(0.01)
